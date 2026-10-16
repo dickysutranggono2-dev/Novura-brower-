@@ -1,0 +1,33 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src https: http:; connect-src 'self'">
+<title>Nuvora Browser</title><link rel="stylesheet" href="css/style.css"></head><body>
+<header id="bar" hidden>
+ <div class="addr"><i data-i="lock" id="lock"></i><input id="url" inputmode="url" autocapitalize="off"><button data-a="reload"><i data-i="rotate"></i></button></div>
+</header>
+<main>
+ <section id="home" class="pg on">
+  <div class="hero"><div class="logo"><svg viewBox="0 0 48 48"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2596f6"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><rect width="48" height="48" rx="12" fill="url(#g)"/><path d="M15 35V13h5l9 14V13h4v22h-5l-9-14v14z" fill="#fff"/></svg><b>Nuvora</b><span>Browser</span></div>
+   <form id="sf" class="pill"><i data-i="search"></i><input id="q" placeholder="Search or type URL" inputmode="url" autocapitalize="off"></form></div>
+  <div class="card"><div id="sc" class="grid"></div></div>
+  <div class="ad" id="ad"><span class="tag">Ad</span><b>Ruang iklan (placeholder)</b><small>Banner AdMob tampil di perangkat; ini hanya tampilan saat dev.</small></div>
+  <h3>Berita Terbaru</h3><div id="news"></div>
+ </section>
+ <section id="tabs" class="pg"><h2>Tab</h2><div id="tl"></div><button class="btn" data-a="newtab"><i data-i="plus"></i> Tab Baru</button></section>
+ <section id="bm" class="pg"><h2>Bookmark</h2><div id="bl"></div></section>
+ <section id="hist" class="pg"><h2>Riwayat</h2><div id="hl"></div><button class="btn ghost" data-a="clearhist">Hapus Riwayat</button></section>
+ <section id="menu" class="pg"><h2>Menu</h2><div class="list">
+  <button data-go="bm"><i data-i="bookmark"></i>Bookmark<i data-i="chev"></i></button>
+  <button data-go="hist"><i data-i="clock"></i>Riwayat<i data-i="chev"></i></button>
+  <label><i data-i="moon"></i>Mode Gelap<input type="checkbox" id="dark" class="sw"></label>
+  <button data-go="set"><i data-i="gear"></i>Pengaturan<i data-i="chev"></i></button>
+  <button data-a="share"><i data-i="share"></i>Bagikan Aplikasi<i data-i="chev"></i></button>
+  <button data-a="about"><i data-i="info"></i>Tentang<i data-i="chev"></i></button></div></section>
+ <section id="set" class="pg"><h2>Pengaturan</h2><div class="list">
+  <label>Mesin Pencari<select id="eng"><option value="g">Google</option><option value="d">DuckDuckGo</option><option value="b">Bing</option></select></label>
+  <button data-a="clearhist"><i data-i="trash"></i>Hapus Riwayat</button>
+  <button data-a="clearall"><i data-i="trash"></i>Hapus Semua Data</button></div></section>
+ <section id="web" class="pg"><iframe id="fr" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-same-origin allow-popups"></iframe></section>
+</main>
+<nav id="nav"></nav><div id="toast"></div>
+<script type="module" src="js/app.js"></script></body></html>
