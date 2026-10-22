@@ -1,4 +1,4 @@
-# Nuvora Browser
+# Nevra Browser
 HTML/CSS/JS murni + Capacitor. Tanpa bundler: plugin diakses via `window.Capacitor.Plugins`.
 
 ## Struktur

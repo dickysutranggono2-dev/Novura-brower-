@@ -1,6 +1,6 @@
 {
-  "appId": "com.nuvora.browser",
-  "appName": "Nuvora Browser",
+  "appId": "com.nevra.browser",
+  "appName": "Nevra Browser",
   "webDir": "www",
   "android": { "allowMixedContent": false },
   "server": { "androidScheme": "https" }
