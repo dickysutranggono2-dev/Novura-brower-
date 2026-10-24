@@ -6,10 +6,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with: { node-version: 22 }
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: 17 }
-      - run: npm install
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm install --legacy-peer-deps
       - run: npx cap add android
       - run: npx capacitor-assets generate --android
       - name: AdMob App ID (TEST)
