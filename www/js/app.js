@@ -6,7 +6,6 @@ const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
 const SE={g:'https://www.google.com/search?q=',d:'https://duckduckgo.com/?q=',b:'https://www.bing.com/search?q='};
 const DEF=[['Google','https://www.google.com','#4285f4'],['YouTube','https://m.youtube.com','#ef4444'],['Facebook','https://m.facebook.com','#1877f2'],['Instagram','https://www.instagram.com','#d946ef'],['X','https://x.com','#111827'],['TikTok','https://www.tiktok.com','#0f172a'],['ChatGPT','https://chatgpt.com','#10a37f']];
 if(!S.sc.length)S.sc=DEF.map(([n,u,c])=>({n,u,c}));
-const NEWS=[['Contoh berita: Teknologi','Sumber placeholder','tech'],['Contoh berita: Ekonomi','Sumber placeholder','eco'],['Contoh berita: Olahraga','Sumber placeholder','sport']];
 const IC={'google.com':'google','youtube.com':'youtube','facebook.com':'facebook','instagram.com':'instagram','x.com':'x','tiktok.com':'tiktok','chatgpt.com':'chatgpt'};
 const ico=s=>{const h=host(s.u),k=Object.keys(IC).find(d=>h===d||h.endsWith('.'+d));return k?`<img src="img/ic-${IC[k]}.svg" alt="" width="46" height="46">`:`<i style="background:${s.c}">${esc(s.n[0])}</i>`};
 let cur='home';
@@ -25,7 +24,7 @@ function show(id){cur=id;document.querySelectorAll('.pg').forEach(p=>p.classList
  id==='web'?hideAds():showAds()}
 function go(url){const u=norm(url);if(!u||!ext.allow(u))return;
  const t=S.tabs[S.active]||(S.tabs.push({url:u,title:host(u)}),S.active=S.tabs.length-1,S.tabs[S.active]);
- t.url=u;t.title=host(u);visit(u);save();$('#url').value=u;setLock(u);show('web');engine.open(u);ext.onPage()}
+ t.url=u;t.title=host(u);visit(u);save();$('#url').value=u;setLock(u);show('web');engine.open(u).then(ok=>{if(!ok&&engine.err)alert(engine.err)});ext.onPage()}
 function visit(u){S.hist=S.hist.filter(h=>h.u!==u);S.hist.unshift({u,t:host(u),d:Date.now()});S.hist.length=Math.min(S.hist.length,200)}
 const setLock=u=>{$('#lock').dataset.i=u.startsWith('https')?'lock':'unlock';paint($('#bar'))};
 const fr=$('#fr');
@@ -35,14 +34,14 @@ engine.onClose=()=>show('home');
 const row=(l,t,s,a,x)=>`<div class="row" data-u="${esc(l)}"><div class="fav">${esc(t[0]||'?').toUpperCase()}</div><div><b>${esc(t)}</b><small>${esc(s)}</small></div>${x?`<button data-del="${a}" aria-label="Hapus">${ic('x')}</button>`:''}</div>`;
 function render(){
  $('#sc').innerHTML=S.sc.map((s,i)=>`<a class="sc" data-u="${esc(s.u)}" data-i="${i}">${ico(s)}${esc(s.n)}</a>`).join('')+`<a class="sc" data-a="addsc"><i style="background:#e2e8f0;color:#475569">${ic('plus')}</i>Add</a>`;
- $('#news').innerHTML=NEWS.map(n=>`<div class="row"><div class="thumb"><img src="img/news-${n[2]}.svg" alt=""></div><div><b>${n[0]}</b><small>${n[1]}</small></div></div>`).join('');document.querySelectorAll('.thumb img').forEach(i=>i.addEventListener('error',()=>{i.style.display='none'}));
+ 
  $('#tl').innerHTML=S.tabs.map((t,i)=>row(t.url,t.title,t.url,i,1).replace('class="row"',`class="row" data-t="${i}"`)).join('')||'<p style="color:var(--m)">Belum ada tab.</p>';
  $('#bl').innerHTML=S.bm.map((b,i)=>row(b.u,b.t,b.u,i,1)).join('')||'<p style="color:var(--m)">Belum ada bookmark. Buka situs lalu tekan ★ di bar.</p>';
  $('#hl').innerHTML=S.hist.map(h=>row(h.u,h.t,h.u)).join('')||'<p style="color:var(--m)">Riwayat kosong.</p>';
- $('#dark').checked=S.dark;$('#eng').value=S.eng;document.body.classList.toggle('d',S.dark);ext.render();paint()}
+ $('#dark').checked=S.dark;$('#eng').value=S.eng;document.body.classList.toggle('d',S.dark);ext.render();{const e=$('#engst');if(e)e.textContent='Mesin browser: '+(engine.info||'belum dipakai')}paint()}
 $('#nav').innerHTML=[['home','Beranda','home'],['tabs','Tab','tabs'],['bm','Bookmark','bookmark'],['hist','Riwayat','clock'],['menu','Menu','gear']].map(([g,l,i])=>`<button data-go="${g}">${ic(i)}${l}</button>`).join('');
 // Bar browser: tambahkan tombol back/forward/home/bookmark
-$('#bar').insertAdjacentHTML('afterbegin',`<div style="display:flex;gap:4px;margin-bottom:6px"><button data-a="back">${ic('chev').replace('<svg','<svg style="transform:scaleX(-1)"')}</button><button data-a="fwd">${ic('chev')}</button><button data-a="home">${ic('home')}</button><button data-go="ext" style="margin-left:auto">${ic('puzzle')}</button><button data-a="bmk">${ic('star')}</button></div>`);
+$('#bar').insertAdjacentHTML('afterbegin',`<div style="display:flex;gap:4px;margin-bottom:6px"><button data-a="back">${ic('chev').replace('<svg','<svg style="transform:scaleX(-1)"')}</button><button data-a="fwd">${ic('chev')}</button><button data-a="home">${ic('home')}</button><button data-a="bmk" style="margin-left:auto">${ic('star')}</button></div>`);
 $('#bar').addEventListener('submit',e=>e.preventDefault());
 $('#url').addEventListener('keydown',e=>{if(e.key==='Enter')go(e.target.value)});
 $('#sf').onsubmit=e=>{e.preventDefault();go($('#q').value);$('#q').value=''};
@@ -57,6 +56,9 @@ const A={
  clearall(){if(confirm('Hapus riwayat, bookmark, tab, dan pengaturan?')){localStorage.removeItem(KEY);location.reload()}},
  addsc(){const u=prompt('URL situs:');const n=u&&norm(u);if(n&&n.startsWith('http')&&!n.includes('search?q')){S.sc.push({n:host(n),u:n,c:'#2596f6'});save();render()}},
  async share(){const d={title:'Nevra Browser',text:'Coba Nevra Browser — ringan dan cepat.'};navigator.share?navigator.share(d).catch(()=>{}):toast('Berbagi tidak didukung')},
+ dns(){const P=[['Cloudflare','one.one.one.one','Cepat dan umum dipakai'],['Google','dns.google','Stabil'],['AdGuard','dns.adguard-dns.com','Memblokir iklan dan pelacak'],['Cloudflare Family','family.cloudflare-dns.com','Blokir malware dan konten dewasa'],['Quad9','dns.quad9.net','Blokir domain berbahaya']];
+  const s=$('#sheet');s.innerHTML=`<div class="row" style="box-shadow:none;background:none;padding:0"><b style="font-size:18px;flex:1">DNS Aman</b><button data-x="close">${ic('x')}</button></div><p class="m">Nevra memakai DNS Pribadi bawaan Android, jadi pengaturan ini berlaku untuk semua aplikasi di HP. Salin nama host, lalu tempel di pengaturan Android.</p>`+P.map(p=>`<div class="row"><div><b>${p[0]}</b><small>${p[1]}</small><small>${p[2]}</small></div><button class="xbtn ghost" data-dns="${p[1]}">Salin</button></div>`).join('')+`<h4>Cara memasang</h4><ol class="m" style="padding-left:20px;line-height:1.8"><li>Buka Pengaturan HP, lalu Koneksi dan berbagi (atau Jaringan dan internet).</li><li>Pilih DNS Pribadi.</li><li>Pilih Nama host penyedia DNS pribadi.</li><li>Tempel nama host yang disalin, lalu Simpan.</li></ol><p class="m">Butuh Android 9 atau lebih baru.</p>`;
+  s.hidden=false;paint(s);s.querySelectorAll('[data-dns]').forEach(b=>b.onclick=()=>{const t=b.dataset.dns;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('Disalin: '+t)).catch(()=>toast('Gagal menyalin, ketik manual: '+t))})},
  about(){toast('Nevra Browser v1.0.0')}
 };
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a],[data-go],[data-u],[data-del],[data-t]');if(!t)return;

@@ -11,13 +11,12 @@
    <form id="sf" class="pill"><i data-i="search"></i><input id="q" placeholder="Search or type URL" inputmode="url" autocapitalize="off"></form></div>
   <div class="card"><div id="sc" class="grid"></div></div>
   <div class="ad" id="ad"><span class="tag">Ad</span><b>Ruang iklan (placeholder)</b><small>Banner AdMob tampil di perangkat; ini hanya tampilan saat dev.</small></div>
-  <h3>Berita Terbaru</h3><div id="news"></div><p class="credit">Dibuat dengan semangat oleh <b data-app="dev"></b></p>
+  
  </section>
  <section id="tabs" class="pg"><h2>Tab</h2><div id="tl"></div><button class="btn" data-a="newtab"><i data-i="plus"></i> Tab Baru</button></section>
  <section id="bm" class="pg"><h2>Bookmark</h2><div id="bl"></div></section>
  <section id="hist" class="pg"><h2>Riwayat</h2><div id="hl"></div><button class="btn ghost" data-a="clearhist">Hapus Riwayat</button></section>
  <section id="menu" class="pg"><h2>Menu</h2><div class="list">
-  <button data-go="ext"><i data-i="puzzle"></i>Ekstensi<i data-i="chev"></i></button>
   <button data-go="bm"><i data-i="bookmark"></i>Bookmark<i data-i="chev"></i></button>
   <button data-go="hist"><i data-i="clock"></i>Riwayat<i data-i="chev"></i></button>
   <label><i data-i="moon"></i>Mode Gelap<input type="checkbox" id="dark" class="sw"></label>
@@ -26,10 +25,11 @@
   <button data-go="about"><i data-i="info"></i>Tentang <span data-app="name"></span><i data-i="chev"></i></button></div></section>
  <section id="set" class="pg"><h2>Pengaturan</h2><div class="list">
   <label>Mesin Pencari<select id="eng"><option value="g">Google</option><option value="d">DuckDuckGo</option><option value="b">Bing</option></select></label>
+  <button data-a="dns"><i data-i="shield"></i>DNS Aman<i data-i="chev"></i></button>
   <button data-a="clearhist"><i data-i="trash"></i>Hapus Riwayat</button>
   <button data-a="clearall"><i data-i="trash"></i>Hapus Semua Data</button></div></section>
  <section id="ext" class="pg"><h2>Toko Ekstensi</h2><div class="seg"><button data-x="tab" data-id="store">Toko</button><button data-x="tab" data-id="mine">Ekstensi Saya</button></div><div id="xbody"></div></section>
- <section id="about" class="pg"><div class="abc"><div class="abl"><img src="img/logo.png" alt=""></div><h2 data-app="name"></h2><p class="m">Browser ringan · Modern</p><hr><p>Dibuat oleh</p><h2 class="dev" data-app="dev"></h2><p class="m">Independent Developer</p><p class="m">© <span data-app="year"></span> <span data-app="name"></span></p></div><p class="m ctr">Versi <span data-app="version"></span></p><p class="m ctr">Browser ringan yang dirancang untuk pengalaman menjelajah internet yang cepat, nyaman, dan modern.</p></section>
+ <section id="about" class="pg"><h2 style="font-size:20px">About</h2><div class="abt"><div class="r"><span>App</span><b data-app="name"></b></div><div class="r"><span>Version</span><b data-app="version"></b></div><div class="r"><span>Developer</span><b data-app="dev"></b></div><div class="r"><span>Status</span><b>Independent Developer</b></div><p class="d">A lightweight browser designed for fast, comfortable, and modern browsing.</p><p class="d">&copy; <span data-app="year"></span> <span data-app="name"></span></p><p class="d" id="adst" style="font-size:12px"></p><p class="d" id="engst" style="font-size:12px"></p></div></section>
  <section id="web" class="pg"><iframe id="fr" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms allow-same-origin allow-popups"></iframe></section>
 </main>
 <div id="sheet" hidden></div>
