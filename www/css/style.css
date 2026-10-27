@@ -47,3 +47,13 @@ h4{margin:14px 0 8px}.m{color:var(--m)}.ab{text-align:center}.ab>*{margin:8px au
 body{padding-bottom:var(--adh,0px)}
 
 .abt{font-size:14px}.abt .r{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid rgba(100,116,139,.2)}.abt .r span{color:var(--m)}.abt .r b{font-weight:500;text-align:right}.abt p.d{color:var(--m);font-size:13px;margin:14px 0 0}
+
+[hidden]{display:none!important}
+header#bar{position:relative}#prog{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--g);transition:width .2s}
+.addr button{display:grid;place-items:center;flex:none}.addr input{flex:1;min-width:0}
+#bnav button{position:relative}#bnav button.dis{opacity:.35}.bd{position:absolute;top:9px;left:calc(50% - 3px);font-size:10px;font-weight:700}
+
+.pb{height:3px;background:rgba(100,116,139,.2);border-radius:3px;margin-top:6px;overflow:hidden}.pb i{display:block;height:100%;background:var(--g)}
+#dll h4{margin:14px 0 6px;color:var(--m);font-weight:500;font-size:13px}
+#asheet{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:30;display:flex;align-items:flex-end}.abx{width:100%;background:var(--c);border-radius:20px 20px 0 0;padding:12px 16px calc(14px + env(safe-area-inset-bottom))}
+.abx b{display:block;padding:10px 4px;word-break:break-all}.abx button{display:block;width:100%;text-align:left;padding:14px 4px;font-size:16px;border-top:1px solid rgba(100,116,139,.15)}
