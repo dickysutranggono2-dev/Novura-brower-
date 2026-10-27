@@ -6,11 +6,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with: { node-version: 20 }
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: 21 }
+        with: { distribution: temurin, java-version: 17 }
       - run: npm install --legacy-peer-deps
       - run: npx cap add android
+      - name: Pasang modul native Nevra
+        run: |
+          cp native/android/*.java android/app/src/main/java/com/nevra/browser/
+          sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/><application#' android/app/src/main/AndroidManifest.xml
       - run: npx capacitor-assets generate --android
       - name: AdMob App ID (TEST)
         env: { ADMOB_APP_ID: "${{ secrets.ADMOB_APP_ID }}" }
@@ -20,4 +24,4 @@ jobs:
       - run: npx cap sync android
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
-        with: { name: nuvora-debug-apk, path: android/app/build/outputs/apk/debug/*.apk }
+        with: { name: nevra-debug-apk, path: android/app/build/outputs/apk/debug/*.apk }
