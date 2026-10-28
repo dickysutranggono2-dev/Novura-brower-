@@ -226,23 +226,30 @@ public class NevraWebPlugin extends Plugin {
         try {
             JSArray ids = call.getArray("ids");
             JSArray out = new JSArray();
+            DownloadManager.Query q = new DownloadManager.Query();
             if (ids != null && ids.length() > 0) {
                 long[] arr = new long[ids.length()];
                 for (int i = 0; i < ids.length(); i++) arr[i] = ids.getLong(i);
-                Cursor c = dm().query(new DownloadManager.Query().setFilterById(arr));
-                if (c != null) {
-                    try {
-                        while (c.moveToNext()) {
-                            JSObject o = new JSObject();
-                            o.put("id", c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_ID)));
-                            o.put("status", c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)));
-                            o.put("total", c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)));
-                            o.put("done", c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)));
-                            out.put(o);
-                        }
-                    } finally {
-                        c.close();
+                q.setFilterById(arr);
+            }
+            Cursor c = dm().query(q);
+            if (c != null) {
+                try {
+                    while (c.moveToNext()) {
+                        JSObject o = new JSObject();
+                        o.put("id", c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_ID)));
+                        o.put("status", c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)));
+                        o.put("total", c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)));
+                        o.put("done", c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)));
+                        String title = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TITLE));
+                        o.put("title", title == null ? "" : title);
+                        String uri = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_URI));
+                        o.put("uri", uri == null ? "" : uri);
+                        o.put("t", c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_LAST_MODIFIED_TIMESTAMP)));
+                        out.put(o);
                     }
+                } finally {
+                    c.close();
                 }
             }
             JSObject res = new JSObject();

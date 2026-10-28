@@ -17,6 +17,6 @@ export const engine={
  fwd(){if(NW)call('forward');else try{fr().contentWindow.history.forward()}catch(e){}},
  reload(){if(NW)call('reload');else fr().src=fr().src},
  openDownloads(){if(NW)call('openDownloads')},
- async downloads(ids){if(!NW)return[];try{const r=await NW.queryDownloads({ids});return r.items||[]}catch(x){return[]}},
+ async downloads(){if(!NW)return[];try{const r=await NW.queryDownloads({});return r.items||[]}catch(x){engine.err='unduhan: '+String((x&&x.message)||x);return[]}},
  fileOp(m,id){return NW?NW[m]({id}):Promise.reject(new Error('tidak didukung'))}
 };
