@@ -32,8 +32,9 @@ function paintNav(){const b=$('#bnav');if(!b)return;b.querySelector('[data-a=bac
 engine.on('pageStarted',e=>{if(!e.url)return;$('#url').value=e.url;setLock(e.url);$('#prog').style.width='8%'});
 engine.on('pageFinished',e=>{if(!e.url)return;const t=S.tabs[S.active];if(t){t.url=e.url;t.title=e.title||host(e.url)}visit(e.url,e.title);save();nv.back=!!e.canGoBack;nv.fwd=!!e.canGoForward;$('#prog').style.width='0';paintNav()});
 engine.on('progress',e=>{$('#prog').style.width=(e.progress<100?e.progress:0)+'%'});
-engine.on('download',e=>{evN++;toast('Mengunduh: '+e.name);refreshDl()});
-engine.on('downloadError',()=>toast('Unduhan gagal (jenis file ini belum didukung)'));
+engine.on('downloadAttempt',()=>{evN++;render()});
+engine.on('download',e=>{toast('Mengunduh: '+e.name);refreshDl()});
+engine.on('downloadError',e=>{toast('Unduhan gagal: '+(e.error||'kesalahan tidak diketahui'));refreshDl()});
 engine.on('blocked',()=>toast('Tautan ke aplikasi lain diblokir'));
 const row=(l,t,s,a,x)=>`<div class="row" data-u="${esc(l)}"><div class="fav">${esc(t[0]||'?').toUpperCase()}</div><div><b>${esc(t)}</b><small>${esc(s)}</small></div>${x?`<button data-del="${a}" aria-label="Hapus">${ic('x')}</button>`:''}</div>`;
 const em=t=>`<p style="color:var(--m)">${t}</p>`;

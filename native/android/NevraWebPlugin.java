@@ -17,6 +17,8 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.Toast;
+import android.util.Log;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -111,6 +113,14 @@ public class NevraWebPlugin extends Plugin {
         });
 
         web.setDownloadListener((url, ua, cd, mime, len) -> {
+            // Diagnostik nyata: jika toast ini tidak muncul, WebView tidak memicu DownloadListener.
+            Log.i("NevraDownload", "DownloadListener dipanggil: url=" + url + ", mime=" + mime + ", length=" + len);
+            Toast.makeText(getActivity(), "Nevra: download terdeteksi", Toast.LENGTH_SHORT).show();
+            JSObject started = new JSObject();
+            started.put("url", url == null ? "" : url);
+            started.put("mime", mime == null ? "" : mime);
+            started.put("size", len);
+            notifyListeners("downloadAttempt", started);
             try {
                 String name = URLUtil.guessFileName(url, cd, mime);
                 DownloadManager.Request r = new DownloadManager.Request(Uri.parse(url));
@@ -124,6 +134,7 @@ public class NevraWebPlugin extends Plugin {
                 r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
                 DownloadManager dm = (DownloadManager) getActivity().getSystemService(Context.DOWNLOAD_SERVICE);
                 long did = dm.enqueue(r);
+                Log.i("NevraDownload", "DownloadManager enqueue berhasil, id=" + did + ", name=" + name);
                 JSObject o = new JSObject();
                 o.put("id", did);
                 o.put("name", name);
@@ -132,8 +143,11 @@ public class NevraWebPlugin extends Plugin {
                 o.put("size", len);
                 notifyListeners("download", o);
             } catch (Exception e) {
+                Log.e("NevraDownload", "Gagal memulai download", e);
+                Toast.makeText(getActivity(), "Nevra: download gagal dimulai", Toast.LENGTH_LONG).show();
                 JSObject o = new JSObject();
                 o.put("error", String.valueOf(e.getMessage()));
+                o.put("url", url == null ? "" : url);
                 notifyListeners("downloadError", o);
             }
         });
