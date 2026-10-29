@@ -8,6 +8,7 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Environment;
 import android.view.View;
+import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.URLUtil;
@@ -18,7 +19,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.Toast;
-import android.util.Log;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -113,28 +113,32 @@ public class NevraWebPlugin extends Plugin {
         });
 
         web.setDownloadListener((url, ua, cd, mime, len) -> {
-            // Diagnostik nyata: jika toast ini tidak muncul, WebView tidak memicu DownloadListener.
-            Log.i("NevraDownload", "DownloadListener dipanggil: url=" + url + ", mime=" + mime + ", length=" + len);
-            Toast.makeText(getActivity(), "Nevra: download terdeteksi", Toast.LENGTH_SHORT).show();
-            JSObject started = new JSObject();
-            started.put("url", url == null ? "" : url);
-            started.put("mime", mime == null ? "" : mime);
-            started.put("size", len);
-            notifyListeners("downloadAttempt", started);
+            Log.i("NevraDownload", "DownloadListener: url=" + url + ", mime=" + mime + ", length=" + len);
+            JSObject attempt = new JSObject();
+            attempt.put("url", url == null ? "" : url);
+            attempt.put("mime", mime == null ? "" : mime);
+            attempt.put("size", len);
+            notifyListeners("downloadAttempt", attempt);
             try {
+                if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) {
+                    throw new IllegalArgumentException("jenis tautan unduhan belum didukung ("
+                            + (url == null ? "kosong" : url.split(":")[0]) + ")");
+                }
                 String name = URLUtil.guessFileName(url, cd, mime);
-                DownloadManager.Request r = new DownloadManager.Request(Uri.parse(url));
-                if (mime != null) r.setMimeType(mime);
-                r.setTitle(name);
-                r.setDescription("Nevra Browser");
-                String ck = CookieManager.getInstance().getCookie(url);
-                if (ck != null) r.addRequestHeader("cookie", ck);
-                if (ua != null) r.addRequestHeader("User-Agent", ua);
-                r.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
-                DownloadManager dm = (DownloadManager) getActivity().getSystemService(Context.DOWNLOAD_SERVICE);
-                long did = dm.enqueue(r);
-                Log.i("NevraDownload", "DownloadManager enqueue berhasil, id=" + did + ", name=" + name);
+                String ref = web.getUrl();
+                long did;
+                try {
+                    did = enqueueDownload(url, ua, mime, name, ref, true);
+                } catch (Exception first) {
+                    Log.e("NevraDownload", "Percobaan 1 gagal", first);
+                    try {
+                        did = enqueueDownload(url, null, mime, name, null, false);
+                    } catch (Exception second) {
+                        throw new RuntimeException(first.getClass().getSimpleName() + ": " + first.getMessage()
+                                + " | percobaan 2 - " + second.getClass().getSimpleName() + ": " + second.getMessage());
+                    }
+                }
+                Log.i("NevraDownload", "enqueue berhasil, id=" + did + ", name=" + name);
                 JSObject o = new JSObject();
                 o.put("id", did);
                 o.put("name", name);
@@ -143,16 +147,47 @@ public class NevraWebPlugin extends Plugin {
                 o.put("size", len);
                 notifyListeners("download", o);
             } catch (Exception e) {
-                Log.e("NevraDownload", "Gagal memulai download", e);
-                Toast.makeText(getActivity(), "Nevra: download gagal dimulai", Toast.LENGTH_LONG).show();
+                String msg = e.getClass().getSimpleName() + ": " + e.getMessage();
+                Log.e("NevraDownload", "Gagal memulai unduhan", e);
+                Toast.makeText(getActivity(), "Unduhan gagal: " + msg, Toast.LENGTH_LONG).show();
                 JSObject o = new JSObject();
-                o.put("error", String.valueOf(e.getMessage()));
+                o.put("error", msg);
                 o.put("url", url == null ? "" : url);
                 notifyListeners("downloadError", o);
             }
         });
 
         root.addView(web, lp(0, 0));
+    }
+
+    private long enqueueDownload(String url, String ua, String mime, String name, String ref, boolean publicDir) {
+        DownloadManager.Request r = new DownloadManager.Request(Uri.parse(url));
+        if (mime != null && !mime.isEmpty()) r.setMimeType(mime);
+        r.setTitle(name);
+        r.setDescription("Nevra Browser");
+        if (publicDir) {
+            String ck = CookieManager.getInstance().getCookie(url);
+            if (ck != null) r.addRequestHeader("Cookie", ck);
+            if (ua != null) r.addRequestHeader("User-Agent", ua);
+            if (ref != null && ref.startsWith("http")) r.addRequestHeader("Referer", ref);
+        }
+        r.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        if (publicDir) {
+            r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name);
+        } else {
+            r.setDestinationInExternalFilesDir(getActivity(), Environment.DIRECTORY_DOWNLOADS, name);
+        }
+        DownloadManager dm = (DownloadManager) getActivity().getSystemService(Context.DOWNLOAD_SERVICE);
+        return dm.enqueue(r);
+    }
+
+    @PluginMethod
+    public void toast(final PluginCall call) {
+        final String t = call.getString("text");
+        ui(() -> {
+            Toast.makeText(getActivity(), t == null ? "" : t, Toast.LENGTH_LONG).show();
+            call.resolve();
+        });
     }
 
     @PluginMethod
@@ -260,6 +295,7 @@ public class NevraWebPlugin extends Plugin {
                         String uri = c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_URI));
                         o.put("uri", uri == null ? "" : uri);
                         o.put("t", c.getLong(c.getColumnIndexOrThrow(DownloadManager.COLUMN_LAST_MODIFIED_TIMESTAMP)));
+                        o.put("reason", c.getInt(c.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON)));
                         out.put(o);
                     }
                 } finally {
