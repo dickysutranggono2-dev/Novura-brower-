@@ -7,6 +7,7 @@ import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Environment;
+import android.os.Message;
 import android.view.View;
 import android.util.Log;
 import android.view.ViewGroup;
@@ -31,9 +32,16 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "NevraWeb")
 public class NevraWebPlugin extends Plugin {
     private static WebView sWeb;
+    private static NevraWebPlugin sSelf;
     private WebView web;
+    private View customView;
+    private WebChromeClient.CustomViewCallback customCb;
 
     static boolean goBackIfPossible() {
+        if (sSelf != null && sSelf.customView != null) {
+            sSelf.hideFullscreen();
+            return true;
+        }
         if (sWeb != null && sWeb.getVisibility() == View.VISIBLE && sWeb.canGoBack()) {
             sWeb.goBack();
             return true;
@@ -63,11 +71,38 @@ public class NevraWebPlugin extends Plugin {
         notifyListeners(ev, o);
     }
 
+    private void showFullscreen(View view, WebChromeClient.CustomViewCallback cb) {
+        if (customView != null) {
+            cb.onCustomViewHidden();
+            return;
+        }
+        customView = view;
+        customCb = cb;
+        ViewGroup root = (ViewGroup) getActivity().findViewById(android.R.id.content);
+        root.addView(view, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        getActivity().getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+    }
+
+    private void hideFullscreen() {
+        if (customView == null) return;
+        ViewGroup root = (ViewGroup) getActivity().findViewById(android.R.id.content);
+        root.removeView(customView);
+        customView = null;
+        if (customCb != null) {
+            customCb.onCustomViewHidden();
+            customCb = null;
+        }
+        getActivity().getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+    }
+
     private void ensure() {
         if (web != null) return;
         ViewGroup root = (ViewGroup) getActivity().findViewById(android.R.id.content);
         web = new WebView(getActivity());
         sWeb = web;
+        sSelf = this;
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -76,7 +111,8 @@ public class NevraWebPlugin extends Plugin {
         s.setSupportZoom(true);
         s.setBuiltInZoomControls(true);
         s.setDisplayZoomControls(false);
-        s.setSupportMultipleWindows(false);
+        s.setSupportMultipleWindows(true);
+        s.setJavaScriptCanOpenWindowsAutomatically(false);
         CookieManager cm = CookieManager.getInstance();
         cm.setAcceptCookie(true);
         cm.setAcceptThirdPartyCookies(web, true);
@@ -104,6 +140,32 @@ public class NevraWebPlugin extends Plugin {
         });
 
         web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onCreateWindow(WebView v, boolean isDialog, boolean isUserGesture, Message resultMsg) {
+                WebView.HitTestResult hr = v.getHitTestResult();
+                int type = hr.getType();
+                String extra = hr.getExtra();
+                boolean link = isUserGesture && extra != null
+                        && (type == WebView.HitTestResult.SRC_ANCHOR_TYPE || type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE)
+                        && (extra.startsWith("http://") || extra.startsWith("https://"));
+                if (link) {
+                    v.loadUrl(extra);
+                } else {
+                    notifyListeners("popupBlocked", new JSObject());
+                }
+                return false;
+            }
+
+            @Override
+            public void onShowCustomView(View view, CustomViewCallback cb) {
+                showFullscreen(view, cb);
+            }
+
+            @Override
+            public void onHideCustomView() {
+                hideFullscreen();
+            }
+
             @Override
             public void onProgressChanged(WebView v, int p) {
                 JSObject o = new JSObject();

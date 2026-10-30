@@ -35,6 +35,7 @@ engine.on('progress',e=>{$('#prog').style.width=(e.progress<100?e.progress:0)+'%
 engine.on('downloadAttempt',()=>{evN++;render()});
 engine.on('download',e=>{toast('Mengunduh: '+e.name);refreshDl()});
 engine.on('downloadError',e=>{lastErr=(e.error||'kesalahan tidak diketahui')+(e.url?' ['+host(e.url)+']':'');toast('Unduhan gagal: '+(e.error||'?'));render();refreshDl()});
+engine.on('popupBlocked',()=>toast('Popup iklan diblokir'));
 engine.on('blocked',()=>toast('Tautan ke aplikasi lain diblokir'));
 const row=(l,t,s,a,x)=>`<div class="row" data-u="${esc(l)}"><div class="fav">${esc(t[0]||'?').toUpperCase()}</div><div><b>${esc(t)}</b><small>${esc(s)}</small></div>${x?`<button data-del="${a}" aria-label="Hapus">${ic('x')}</button>`:''}</div>`;
 const em=t=>`<p style="color:var(--m)">${t}</p>`;

@@ -3,7 +3,7 @@ const cap=window.Capacitor,native=!!(cap&&cap.isNativePlatform&&cap.isNativePlat
 export const isNative=native;
 export const plugin=n=>{if(!native)return null;try{const p=cap.Plugins&&cap.Plugins[n];if(p)return p}catch(e){}try{return cap.registerPlugin(n)}catch(e){return null}};
 const NW=plugin('NevraWeb'),ev={};
-['pageStarted','pageFinished','progress','download','downloadError','blocked'].forEach(n=>{try{const r=NW&&NW.addListener(n,e=>ev[n]&&ev[n](e));r&&r.catch&&r.catch(()=>{})}catch(e){}});
+['pageStarted','pageFinished','progress','download','downloadError','blocked','popupBlocked'].forEach(n=>{try{const r=NW&&NW.addListener(n,e=>ev[n]&&ev[n](e));r&&r.catch&&r.catch(()=>{})}catch(e){}});
 const px=b=>({top:Math.round(b.top*devicePixelRatio),bottom:Math.round(b.bottom*devicePixelRatio)});
 const call=(m,a)=>{try{return Promise.resolve(NW[m](a||{})).catch(e=>{engine.err=String((e&&e.message)||e)})}catch(e){engine.err=String(e);return Promise.resolve()}};
 const fr=()=>document.getElementById('fr');
