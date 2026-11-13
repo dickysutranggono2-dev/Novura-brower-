@@ -15,6 +15,9 @@ jobs:
         run: |
           cp native/android/*.java android/app/src/main/java/com/nevra/browser/
           sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/><application#' android/app/src/main/AndroidManifest.xml
+      - name: Tambahkan dukungan Chrome Custom Tabs
+        run: |
+          sed -i '/^dependencies {/a\    implementation "androidx.browser:browser:1.8.0"' android/app/build.gradle
       - run: npx capacitor-assets generate --android
       - name: AdMob App ID (TEST)
         env: { ADMOB_APP_ID: "${{ secrets.ADMOB_APP_ID }}" }
