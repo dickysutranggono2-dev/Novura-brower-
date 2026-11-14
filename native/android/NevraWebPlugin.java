@@ -8,17 +8,24 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Environment;
 import android.os.Message;
+import android.view.MotionEvent;
 import android.view.View;
 import android.util.Log;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
+import android.webkit.MimeTypeMap;
 import android.webkit.URLUtil;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebStorage;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import androidx.browser.customtabs.CustomTabsIntent;
 import android.widget.FrameLayout;
+import java.net.URLDecoder;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import android.widget.Toast;
 
 import com.getcapacitor.JSArray;
@@ -97,6 +104,34 @@ public class NevraWebPlugin extends Plugin {
         getActivity().getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
     }
 
+    private void openInCustomTab(String url) {
+        try {
+            CustomTabsIntent tabs = new CustomTabsIntent.Builder()
+                    .setShowTitle(true)
+                    .build();
+            tabs.launchUrl(getActivity(), Uri.parse(url));
+        } catch (Exception e) {
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                getActivity().startActivity(intent);
+            } catch (Exception ignored) {
+                Toast.makeText(getActivity(), "Tidak ada browser untuk membuka halaman ini",
+                        Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    // Buka halaman autentikasi Google di browser sistem, bukan embedded WebView.
+    private boolean isExternalAuthUrl(String url) {
+        if (url == null) return false;
+        Uri uri = Uri.parse(url);
+        String host = uri.getHost();
+        if (host == null) return false;
+        host = host.toLowerCase(java.util.Locale.ROOT);
+        return host.equals("accounts.google.com")
+                || host.equals("accounts.youtube.com");
+    }
+
     private void ensure() {
         if (web != null) return;
         ViewGroup root = (ViewGroup) getActivity().findViewById(android.R.id.content);
@@ -121,6 +156,10 @@ public class NevraWebPlugin extends Plugin {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 String u = r.getUrl().toString();
+                if (isExternalAuthUrl(u)) {
+                    openInCustomTab(u);
+                    return true;
+                }
                 if (u.startsWith("http://") || u.startsWith("https://")) return false;
                 JSObject o = new JSObject();
                 o.put("url", u);
@@ -174,6 +213,14 @@ public class NevraWebPlugin extends Plugin {
             }
         });
 
+        // Hanya memberi tahu UI saat halaman disentuh (agar kolom URL kehilangan fokus); tidak mengubah perilaku WebView.
+        web.setOnTouchListener((v, ev) -> {
+            if (ev.getAction() == MotionEvent.ACTION_DOWN) {
+                notifyListeners("webTouch", new JSObject());
+            }
+            return false;
+        });
+
         web.setDownloadListener((url, ua, cd, mime, len) -> {
             Log.i("NevraDownload", "DownloadListener: url=" + url + ", mime=" + mime + ", length=" + len);
             JSObject attempt = new JSObject();
@@ -186,7 +233,7 @@ public class NevraWebPlugin extends Plugin {
                     throw new IllegalArgumentException("jenis tautan unduhan belum didukung ("
                             + (url == null ? "kosong" : url.split(":")[0]) + ")");
                 }
-                String name = URLUtil.guessFileName(url, cd, mime);
+                String name = fileNameFor(url, cd, mime);
                 String ref = web.getUrl();
                 long did;
                 try {
@@ -253,6 +300,40 @@ public class NevraWebPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void accent(final PluginCall call) {
+        JSObject o = new JSObject();
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                int c = getActivity().getResources().getColor(android.R.color.system_accent1_200, getActivity().getTheme());
+                o.put("color", String.format("#%06X", 0xFFFFFF & c));
+            }
+        } catch (Exception e) {
+            // abaikan: JS memakai warna cadangan
+        }
+        call.resolve(o);
+    }
+
+    @PluginMethod
+    public void clearBrowsingData(final PluginCall call) {
+        ui(() -> {
+            try {
+                CookieManager cm = CookieManager.getInstance();
+                cm.removeAllCookies(null);
+                cm.flush();
+                WebStorage.getInstance().deleteAllData();
+                if (web != null) {
+                    web.clearCache(true);
+                    web.clearHistory();
+                    web.clearFormData();
+                }
+                call.resolve();
+            } catch (Exception e) {
+                call.reject(String.valueOf(e.getMessage()));
+            }
+        });
+    }
+
+    @PluginMethod
     public void open(final PluginCall call) {
         final String url = call.getString("url");
         final int top = call.getInt("top", 0);
@@ -263,6 +344,23 @@ public class NevraWebPlugin extends Plugin {
             web.setVisibility(View.VISIBLE);
             if (url != null && !url.isEmpty()) web.loadUrl(url);
             call.resolve();
+        });
+    }
+
+    @PluginMethod
+    public void openExternal(final PluginCall call) {
+        final String url = call.getString("url");
+        if (url == null || !(url.startsWith("https://") || url.startsWith("http://"))) {
+            call.reject("URL tidak valid");
+            return;
+        }
+        ui(() -> {
+            try {
+                openInCustomTab(url);
+                call.resolve();
+            } catch (Exception e) {
+                call.reject(String.valueOf(e.getMessage()));
+            }
         });
     }
 
@@ -323,6 +421,43 @@ public class NevraWebPlugin extends Plugin {
         }
     }
 
+    private String fileNameFor(String url, String cd, String mime) {
+        String name = null;
+        if (cd != null) {
+            Matcher m = Pattern.compile("filename\\*\\s*=\\s*(?:UTF-8|utf-8)''([^;]+)").matcher(cd);
+            if (m.find()) {
+                name = m.group(1);
+            } else {
+                m = Pattern.compile("filename\\s*=\\s*\"?([^\";]+)\"?").matcher(cd);
+                if (m.find()) name = m.group(1);
+            }
+        }
+        if (name == null || name.trim().isEmpty()) name = URLUtil.guessFileName(url, cd, mime);
+        try {
+            name = URLDecoder.decode(name, "UTF-8");
+        } catch (Exception e) {
+            // pakai apa adanya
+        }
+        name = name.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
+        if (name.isEmpty()) name = "unduhan";
+        if (!name.matches(".*\\.[A-Za-z0-9]{1,5}$") && mime != null && !mime.equals("application/octet-stream")) {
+            String ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime);
+            if (ext != null) name = name + "." + ext;
+        }
+        return name;
+    }
+
+    private String titleOf(long id) {
+        Cursor c = dm().query(new DownloadManager.Query().setFilterById(id));
+        if (c == null) return null;
+        try {
+            if (c.moveToFirst()) return c.getString(c.getColumnIndexOrThrow(DownloadManager.COLUMN_TITLE));
+        } finally {
+            c.close();
+        }
+        return null;
+    }
+
     private DownloadManager dm() {
         return (DownloadManager) getActivity().getSystemService(Context.DOWNLOAD_SERVICE);
     }
@@ -377,19 +512,39 @@ public class NevraWebPlugin extends Plugin {
         try {
             long id = idOf(call);
             Uri uri = dm().getUriForDownloadedFile(id);
-            String mime = dm().getMimeTypeForDownloadedFile(id);
             if (uri == null) {
                 call.reject("File tidak ditemukan");
                 return;
             }
-            if ("application/vnd.android.package-archive".equals(mime)) {
-                openDownloads(call);
+            String title = titleOf(id);
+            String lower = title == null ? "" : title.toLowerCase();
+            if (lower.endsWith(".xapk") || lower.endsWith(".apks") || lower.endsWith(".apkm")) {
+                call.reject("bundle");
                 return;
+            }
+            String mime = dm().getMimeTypeForDownloadedFile(id);
+            boolean apk = lower.endsWith(".apk") || "application/vnd.android.package-archive".equals(mime);
+            if (apk) {
+                mime = "application/vnd.android.package-archive";
+            } else if (mime == null || mime.equals("application/octet-stream")) {
+                int dot = lower.lastIndexOf('.');
+                if (dot >= 0) {
+                    String g = MimeTypeMap.getSingleton().getMimeTypeFromExtension(lower.substring(dot + 1));
+                    if (g != null) mime = g;
+                }
             }
             Intent i = new Intent(Intent.ACTION_VIEW);
             i.setDataAndType(uri, mime == null ? "*/*" : mime);
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-            getActivity().startActivity(i);
+            try {
+                getActivity().startActivity(i);
+            } catch (Exception e) {
+                if (apk) {
+                    openDownloads(call);
+                    return;
+                }
+                throw e;
+            }
             call.resolve();
         } catch (Exception e) {
             call.reject(String.valueOf(e.getMessage()));

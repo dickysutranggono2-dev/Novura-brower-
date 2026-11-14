@@ -60,3 +60,9 @@ header#bar{position:relative}#prog{position:absolute;left:0;bottom:0;height:2px;
 
 .dlic{width:44px;height:44px;border-radius:14px;background:var(--bg);display:grid;place-items:center;flex:none;color:var(--t)}.dlic.ok{color:#15803d}
 .lk{display:block;color:#15803d;font-weight:500;margin:4px 0}
+
+#url::selection{background:var(--sel,rgba(37,150,246,.35));color:inherit}
+#url{caret-color:var(--b)}
+
+.row>.dlic{flex:none}.row>div:nth-child(2){min-width:0}
+#dll .row b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}

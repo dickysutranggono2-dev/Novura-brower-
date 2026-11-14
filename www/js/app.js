@@ -41,6 +41,7 @@ const row=(l,t,s,a,x)=>`<div class="row" data-u="${esc(l)}"><div class="fav">${e
 const em=t=>`<p style="color:var(--m)">${t}</p>`;
 const rs=c=>c>=100&&c<600?'HTTP '+c+(c===403?' (ditolak server)':c===404?' (tidak ditemukan)':''):({1001:'kesalahan penyimpanan',1002:'respons server tidak dikenali',1004:'data bermasalah',1005:'terlalu banyak pengalihan',1006:'ruang penyimpanan kurang',1007:'penyimpanan tidak ditemukan',1008:'tidak bisa dilanjutkan',1009:'file sudah ada'}[c]||'kode '+c);
 const fmt=b=>b<=0?'':b<1024?b+' B':b<1048576?(b/1024).toFixed(1)+' kB':b<1073741824?(b/1048576).toFixed(2)+' MB':(b/1073741824).toFixed(2)+' GB';
+const nm=t=>{try{return decodeURIComponent(String(t||'File').replace(/\+/g,' '))}catch(e){return String(t||'File')}};
 const eta=s=>s<60?Math.ceil(s)+' dtk':Math.ceil(s/60)+' mnt';
 function dlHtml(){const L=sysDl;if(!L.length)return em('Belum ada unduhan.');let last='',h='';
  L.forEach((d,i)=>{const day=new Date(d.t||Date.now()).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});if(day!==last){h+=`<h4>${day}</h4>`;last=day}
@@ -48,7 +49,7 @@ function dlHtml(){const L=sysDl;if(!L.length)return em('Belum ada unduhan.');let
   if(d.status===8){ic0='check';cls=' ok';sub='Download selesai'+(d.total>0?' · '+fmt(d.total):'');ex=`<a class="lk" data-do="${i}">Buka file</a>`}
   else if(d.status===16){ic0='xc';sub='Gagal · '+rs(d.reason)}
   else{const pct=d.total>0?Math.round(d.done*100/d.total):0,sp=spd[d.id]||0;sub=(d.status===2?'Sedang mengunduh':'Menunggu')+' · '+fmt(d.done)+(d.total>0?' dari '+fmt(d.total):'');pr=`<div class="pb"><i style="width:${pct}%"></i></div>`;ex='<small>'+pct+'%'+(sp>0?' · '+fmt(sp)+'/dtk'+(d.total>0?' · sisa '+eta((d.total-d.done)/sp):''):'')+'</small>'}
-  h+=`<div class="row"><div class="dlic${cls}">${ic(ic0)}</div><div><b>${esc(d.title||'File')}</b><small>${esc(sub)}</small>${pr}${ex}<small>${esc(src)}</small></div>${run?`<button data-dc="${i}" aria-label="Batalkan">${ic('xc')}</button>`:`<button data-dm="${i}" aria-label="Opsi">${ic('dots')}</button>`}</div>`});
+  h+=`<div class="row"><div class="dlic${cls}">${ic(ic0)}</div><div><b>${esc(nm(d.title))}</b><small>${esc(sub)}</small>${pr}${ex}<small>${esc(src)}</small></div>${run?`<button data-dc="${i}" aria-label="Batalkan">${ic('xc')}</button>`:`<button data-dm="${i}" aria-label="Opsi">${ic('dots')}</button>`}</div>`});
  return h}
 async function refreshDl(){sysDl=(await engine.downloads()).sort((x,y)=>(y.t||0)-(x.t||0));const now=Date.now();sysDl.forEach(d=>{const p=prevD[d.id];if(p&&d.done>p.done&&now>p.t){const v=(d.done-p.done)/((now-p.t)/1000);spd[d.id]=spd[d.id]?spd[d.id]*.6+v*.4:v}prevD[d.id]={done:d.done,t:now}});if(cur==='dl'&&$('#asheet').hidden)render()}
 function render(){
@@ -64,16 +65,29 @@ $('#nav').innerHTML=[['home','Beranda','home'],['tabs','Tab','tabs'],['bm','Book
 const flip=ic('chev').replace('<svg','<svg style="transform:scaleX(-1)"');
 $('#bnav').innerHTML=`<button data-a="home" aria-label="Beranda">${ic('home')}</button><button data-go="bm" aria-label="Bookmark">${ic('bookmark')}</button><button data-a="back" class="dis" aria-label="Kembali">${flip}</button><button data-a="fwd" class="dis" aria-label="Maju">${ic('chev')}</button><button data-go="tabs" aria-label="Tab">${ic('tabs')}<span class="bd">1</span></button><button data-go="menu" aria-label="Menu">${ic('menu')}</button>`;
 $('#url').addEventListener('keydown',e=>{if(e.key==='Enter'){e.target.blur();go(e.target.value)}});
+// Kolom URL: ketuk = pilih semua teks (seperti browser lain); ketuk di luar = seleksi hilang.
+{const u=$('#url');let fresh=false;
+ u.addEventListener('focus',()=>{fresh=true;setTimeout(()=>{u.select();u.setSelectionRange(0,u.value.length)},50)});
+ const keep=e=>{if(fresh){e.preventDefault();fresh=false;u.select()}};
+ u.addEventListener('mouseup',keep);u.addEventListener('touchend',keep,{passive:false});
+ u.addEventListener('blur',()=>{fresh=false;u.setSelectionRange(0,0);u.scrollLeft=0});
+ engine.on('webTouch',()=>{if(document.activeElement===u)u.blur()});
+ document.addEventListener('pointerdown',e=>{if(document.activeElement===u&&!u.contains(e.target)&&e.target.id!=='url')u.blur()});
+ engine.accent().then(c=>{if(c)document.documentElement.style.setProperty('--sel',c+'80')})}
 $('#sf').onsubmit=e=>{e.preventDefault();go($('#q').value);$('#q').value=''};
 const A={
  reload(){engine.reload()},back(){engine.back()},fwd(){engine.fwd()},home(){show('home')},opendl(){engine.openDownloads()},
  bmk(){const t=S.tabs[S.active];if(!t||!t.url)return;const i=S.bm.findIndex(b=>b.u===t.url);i>=0?(S.bm.splice(i,1),toast('Bookmark dihapus')):(S.bm.unshift({u:t.url,t:t.title}),toast('Bookmark disimpan'));save()},
  newtab(){S.tabs.push({url:'',title:'Tab Baru'});S.active=S.tabs.length-1;save();$('#q').value='';show('home')},
  clearhist(){S.hist=[];save();render();toast('Riwayat dihapus')},
- clearall(){if(confirm('Hapus riwayat, bookmark, tab, dan pengaturan?')){localStorage.removeItem(KEY);location.reload()}},
+ cleardata(){if(!confirm('Hapus cookie, cache, dan data situs? Kamu akan keluar dari akun di situs yang sedang login.'))return;S.hist=[];save();Promise.resolve(engine.clearData()).then(()=>{render();toast('Data penjelajahan dihapus')}).catch(()=>toast('Gagal menghapus data penjelajahan'))},
+ clearall(){if(confirm('Hapus riwayat, bookmark, tab, pengaturan, cookie, dan cache?')){Promise.resolve(engine.clearData()).catch(()=>{}).finally(()=>{localStorage.removeItem(KEY);location.reload()})}},
  addsc(){const u=prompt('URL situs:');const n=u&&norm(u);if(n&&n.startsWith('http')&&!n.includes('search?q')){S.sc.push({n:host(n),u:n,c:'#2596f6'});save();render()}},
  dlclose(){$('#asheet').hidden=true},
- async dlopen(){const d=sysDl[selDl];A.dlclose();if(!d)return toast('File tidak bisa dibuka');try{await engine.fileOp('openFile',d.id)}catch(x){toast('Tidak ada aplikasi untuk membuka file ini')}},
+ async dlopen(){const d=sysDl[selDl];A.dlclose();if(!d)return toast('File tidak bisa dibuka');
+  const n=(d.title||'').toLowerCase();
+  if(n.endsWith('.apk')&&!confirm('Kamu akan memasang aplikasi dari luar Play Store. Pasang hanya dari sumber yang kamu percaya. Lanjutkan?'))return;
+  try{await engine.fileOp('openFile',d.id)}catch(x){const m=String((x&&x.message)||x);toast(m.includes('bundle')?'File ini paket XAPK/APKS. Butuh aplikasi pemasang seperti APKPure atau SAI, atau unduh versi APK biasa.':'Tidak ada aplikasi untuk membuka file ini')}},
  async dlshare(){const d=sysDl[selDl];A.dlclose();if(!d)return toast('File tidak bisa dibagikan');try{await engine.fileOp('shareFile',d.id)}catch(x){toast('Gagal membagikan file')}},
  async dldel(){const d=sysDl[selDl];A.dlclose();if(!d||!confirm('Hapus file ini dari HP?'))return;if(d.id)try{await engine.fileOp('removeDownload',d.id)}catch(x){}await refreshDl()},
  async share(){const d={title:'Nevra Browser',text:'Coba Nevra Browser — ringan dan cepat.'};navigator.share?navigator.share(d).catch(()=>{}):toast('Berbagi tidak didukung')}
@@ -81,7 +95,7 @@ const A={
 document.addEventListener('click',e=>{const t=e.target.closest('[data-a],[data-go],[data-u],[data-del],[data-t],[data-dm],[data-dc],[data-do]');if(!t)return;
  if(t.dataset.dc!==undefined){const d=sysDl[+t.dataset.dc];if(d)engine.fileOp('removeDownload',d.id).catch(()=>{}).finally(refreshDl);return}
  if(t.dataset.do!==undefined){selDl=+t.dataset.do;return A.dlopen()}
- if(t.dataset.dm!==undefined){selDl=+t.dataset.dm;$('#asn').textContent=sysDl[selDl].title;$('#asheet').hidden=false;return}
+ if(t.dataset.dm!==undefined){selDl=+t.dataset.dm;$('#asn').textContent=nm(sysDl[selDl].title);$('#asheet').hidden=false;return}
  if(t.dataset.a)return A[t.dataset.a]();
  if(t.dataset.go)return show(t.dataset.go);
  if(t.dataset.del!==undefined){e.stopPropagation();const l=t.closest('section').id;const i=+t.dataset.del;l==='tabs'?(S.tabs.splice(i,1),S.active=Math.max(0,S.tabs.length-1)):S.bm.splice(i,1);save();return render()}
