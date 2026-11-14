@@ -8,7 +8,7 @@ if(!S.sc.length)S.sc=DEF.map(([n,u,c])=>({n,u,c}));
 const IC={'google.com':'google','youtube.com':'youtube','facebook.com':'facebook','instagram.com':'instagram','x.com':'x','tiktok.com':'tiktok','chatgpt.com':'chatgpt'};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch{return u}};
-const ico=s=>{const h=host(s.u),k=Object.keys(IC).find(d=>h===d||h.endsWith('.'+d));return k?`<img src="img/ic-${IC[k]}.svg" alt="" width="46" height="46">`:`<i style="background:${s.c}">${esc(s.n[0])}</i>`};
+const ico=s=>{const h=host(s.u),k=Object.keys(IC).find(d=>h===d||h.endsWith('.'+d));return k?`<img src="img/ic-${IC[k]}.svg" alt="" width="46" height="46">`:(S.fav&&S.fav[h])?`<img src="${S.fav[h]}" alt="" width="46" height="46" style="border-radius:14px;background:#fff;padding:5px;object-fit:contain">`:`<i style="background:${s.c}">${esc(s.n[0])}</i>`};
 let cur='home',selDl=-1,sysDl=[],evN=0,lastErr='',spd={},prevD={};const nv={back:false,fwd:false};
 function toast(m){if(cur==='web'&&engine.native){engine.toast(m);return}const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2200)}
 // Keamanan: hanya http(s); skema lain (javascript:, file:, intent:) ditolak.
@@ -34,10 +34,19 @@ engine.on('pageFinished',e=>{if(!e.url)return;const t=S.tabs[S.active];if(t){t.u
 engine.on('progress',e=>{$('#prog').style.width=(e.progress<100?e.progress:0)+'%'});
 engine.on('downloadAttempt',()=>{evN++;render()});
 engine.on('download',e=>{toast('Mengunduh: '+e.name);refreshDl()});
+engine.on('favicon',e=>{const h=host(e.url||'');if(!h||!e.icon||e.icon.length>20000)return;S.fav[h]=e.icon;const ks=Object.keys(S.fav);if(ks.length>80)delete S.fav[ks[0]];save();if(cur!=='web')render()});
 engine.on('downloadError',e=>{lastErr=(e.error||'kesalahan tidak diketahui')+(e.url?' ['+host(e.url)+']':'');toast('Unduhan gagal: '+(e.error||'?'));render();refreshDl()});
 engine.on('popupBlocked',()=>toast('Popup iklan diblokir'));
 engine.on('blocked',()=>toast('Tautan ke aplikasi lain diblokir'));
-const row=(l,t,s,a,x)=>`<div class="row" data-u="${esc(l)}"><div class="fav">${esc(t[0]||'?').toUpperCase()}</div><div><b>${esc(t)}</b><small>${esc(s)}</small></div>${x?`<button data-del="${a}" aria-label="Hapus">${ic('x')}</button>`:''}</div>`;
+S.fav=S.fav||{};
+const lt=(t,h)=>esc(((t||h||'?')[0]||'?').toUpperCase());
+function favHtml(u,t,net){const h=host(u||''),k=Object.keys(IC).find(d=>h===d||h.endsWith('.'+d));
+ if(k)return `<img class="fi" src="img/ic-${IC[k]}.svg" alt="">`;
+ if(S.fav[h])return `<img class="fi" src="${S.fav[h]}" alt="" data-l="${lt(t,h)}">`;
+ if(net&&/^https?:/.test(u||''))return `<img class="fi" src="https://${esc(h)}/favicon.ico" alt="" referrerpolicy="no-referrer" data-l="${lt(t,h)}">`;
+ return `<div class="fav">${lt(t,h)}</div>`}
+function favErr(){document.querySelectorAll('img.fi[data-l]').forEach(i=>i.addEventListener('error',()=>{const d=document.createElement('div');d.className='fav';d.textContent=i.dataset.l;i.replaceWith(d)},{once:true}))}
+const row=(l,t,s,a,x,net)=>`<div class="row" data-u="${esc(l)}">${favHtml(l,t,net)}<div><b>${esc(t)}</b><small>${esc(s)}</small></div>${x?`<button data-del="${a}" aria-label="Hapus">${ic('x')}</button>`:''}</div>`;
 const em=t=>`<p style="color:var(--m)">${t}</p>`;
 const rs=c=>c>=100&&c<600?'HTTP '+c+(c===403?' (ditolak server)':c===404?' (tidak ditemukan)':''):({1001:'kesalahan penyimpanan',1002:'respons server tidak dikenali',1004:'data bermasalah',1005:'terlalu banyak pengalihan',1006:'ruang penyimpanan kurang',1007:'penyimpanan tidak ditemukan',1008:'tidak bisa dilanjutkan',1009:'file sudah ada'}[c]||'kode '+c);
 const fmt=b=>b<=0?'':b<1024?b+' B':b<1048576?(b/1024).toFixed(1)+' kB':b<1073741824?(b/1048576).toFixed(2)+' MB':(b/1073741824).toFixed(2)+' GB';
@@ -53,13 +62,13 @@ function dlHtml(){const L=sysDl;if(!L.length)return em('Belum ada unduhan.');let
 async function refreshDl(){sysDl=(await engine.downloads()).sort((x,y)=>(y.t||0)-(x.t||0));const now=Date.now();sysDl.forEach(d=>{const p=prevD[d.id];if(p&&d.done>p.done&&now>p.t){const v=(d.done-p.done)/((now-p.t)/1000);spd[d.id]=spd[d.id]?spd[d.id]*.6+v*.4:v}prevD[d.id]={done:d.done,t:now}});if(cur==='dl'&&$('#asheet').hidden)render()}
 function render(){
  $('#sc').innerHTML=S.sc.map((s,i)=>`<a class="sc" data-u="${esc(s.u)}" data-i="${i}">${ico(s)}${esc(s.n)}</a>`).join('')+`<a class="sc" data-a="addsc"><i style="background:#e2e8f0;color:#475569">${ic('plus')}</i>Add</a>`;
- $('#tl').innerHTML=S.tabs.map((t,i)=>row(t.url,t.title,t.url||'Tab kosong',i,1).replace('class="row"',`class="row" data-t="${i}"`)).join('')||em('Belum ada tab.');
- $('#bl').innerHTML=S.bm.map((b,i)=>row(b.u,b.t,b.u,i,1)).join('')||em('Belum ada bookmark. Buka situs lalu tekan ★ di bar.');
- $('#hl').innerHTML=S.hist.map(h=>row(h.u,h.t,h.u)).join('')||em('Riwayat kosong.');
+ $('#tl').innerHTML=S.tabs.map((t,i)=>row(t.url,t.title,t.url||'Tab kosong',i,1,true).replace('class="row"',`class="row" data-t="${i}"`)).join('')||em('Belum ada tab.');
+ $('#bl').innerHTML=S.bm.map((b,i)=>row(b.u,b.t,b.u,i,1,i<20)).join('')||em('Belum ada bookmark. Buka situs lalu tekan ★ di bar.');
+ $('#hl').innerHTML=S.hist.map((h,i)=>row(h.u,h.t,h.u,0,0,i<12)).join('')||em('Riwayat kosong.');
  $('#dll').innerHTML=dlHtml();
  $('#dark').checked=S.dark;$('#eng').value=S.eng;document.body.classList.toggle('d',S.dark);
  const e=$('#engst');if(e)e.textContent='Mesin browser: '+(engine.native?'WebView native Nevra':'iframe (mode web)');
- const ds=$('#dlst');if(ds)ds.textContent='Terdeteksi dari sistem: '+sysDl.length+' • sinyal diterima: '+evN+(lastErr?' • Kesalahan terakhir: '+lastErr:'')+(engine.err?' • '+engine.err:'');const bd=$('#bnav .bd');if(bd)bd.textContent=Math.max(S.tabs.length,1);paint()}
+ const ds=$('#dlst');if(ds)ds.textContent='Terdeteksi dari sistem: '+sysDl.length+' • sinyal diterima: '+evN+(lastErr?' • Kesalahan terakhir: '+lastErr:'')+(engine.err?' • '+engine.err:'');const bd=$('#bnav .bd');if(bd)bd.textContent=Math.max(S.tabs.length,1);paint();favErr()}
 $('#nav').innerHTML=[['home','Beranda','home'],['tabs','Tab','tabs'],['bm','Bookmark','bookmark'],['hist','Riwayat','clock'],['menu','Menu','gear']].map(([g,l,i])=>`<button data-go="${g}">${ic(i)}${l}</button>`).join('');
 const flip=ic('chev').replace('<svg','<svg style="transform:scaleX(-1)"');
 $('#bnav').innerHTML=`<button data-a="home" aria-label="Beranda">${ic('home')}</button><button data-go="bm" aria-label="Bookmark">${ic('bookmark')}</button><button data-a="back" class="dis" aria-label="Kembali">${flip}</button><button data-a="fwd" class="dis" aria-label="Maju">${ic('chev')}</button><button data-go="tabs" aria-label="Tab">${ic('tabs')}<span class="bd">1</span></button><button data-go="menu" aria-label="Menu">${ic('menu')}</button>`;

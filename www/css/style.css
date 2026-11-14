@@ -60,3 +60,8 @@ header#bar{position:relative}#prog{position:absolute;left:0;bottom:0;height:2px;
 
 .dlic{width:44px;height:44px;border-radius:14px;background:var(--bg);display:grid;place-items:center;flex:none;color:var(--t)}.dlic.ok{color:#15803d}
 .lk{display:block;color:#15803d;font-weight:500;margin:4px 0}
+
+.fi{width:36px;height:36px;border-radius:10px;object-fit:contain;background:#fff;padding:3px;box-shadow:0 1px 4px rgba(0,0,0,.12);flex:none}
+.row>.fav{flex:none}.row>button{flex:none}.row>div{min-width:0}
+.row b{overflow-wrap:anywhere;word-break:break-word}
+#dll .row small{white-space:normal;overflow-wrap:anywhere}

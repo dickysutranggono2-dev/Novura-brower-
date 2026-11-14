@@ -200,6 +200,25 @@ public class NevraWebPlugin extends Plugin {
             }
 
             @Override
+            public void onReceivedIcon(WebView v, Bitmap icon) {
+                try {
+                    if (icon == null) return;
+                    Bitmap b = icon.getWidth() > 64 ? Bitmap.createScaledBitmap(icon, 64, 64, true) : icon;
+                    java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                    b.compress(Bitmap.CompressFormat.PNG, 100, bos);
+                    String data = "data:image/png;base64,"
+                            + android.util.Base64.encodeToString(bos.toByteArray(), android.util.Base64.NO_WRAP);
+                    JSObject o = new JSObject();
+                    String u = v.getUrl();
+                    o.put("url", u == null ? "" : u);
+                    o.put("icon", data);
+                    notifyListeners("favicon", o);
+                } catch (Exception e) {
+                    // abaikan: UI memakai ikon cadangan
+                }
+            }
+
+            @Override
             public void onProgressChanged(WebView v, int p) {
                 JSObject o = new JSObject();
                 o.put("progress", p);
