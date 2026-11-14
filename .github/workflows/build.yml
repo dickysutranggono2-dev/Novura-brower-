@@ -14,7 +14,7 @@ jobs:
       - name: Pasang modul native Nevra
         run: |
           cp native/android/*.java android/app/src/main/java/com/nevra/browser/
-          sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/><uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" /><application#' android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/><application#' android/app/src/main/AndroidManifest.xml
       - name: Tambahkan dukungan Chrome Custom Tabs
         run: |
           sed -i '/^dependencies {/a\    implementation "androidx.browser:browser:1.8.0"' android/app/build.gradle
