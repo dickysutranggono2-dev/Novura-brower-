@@ -432,8 +432,15 @@ public class NevraWebPlugin extends Plugin {
                 call.reject("File tidak ditemukan");
                 return;
             }
-            if ("application/vnd.android.package-archive".equals(mime)) {
-                openDownloads(call);
+            if ("application/vnd.android.package-archive".equals(mime)
+                    || (mime != null && mime.toLowerCase(java.util.Locale.ROOT)
+                    .contains("android.package-archive"))) {
+                Intent install = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+                install.setData(uri);
+                install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        | Intent.FLAG_ACTIVITY_NEW_TASK);
+                getActivity().startActivity(install);
+                call.resolve();
                 return;
             }
             Intent i = new Intent(Intent.ACTION_VIEW);
