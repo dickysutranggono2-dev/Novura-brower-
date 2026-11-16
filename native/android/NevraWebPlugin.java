@@ -7,7 +7,10 @@ import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
+import android.view.MotionEvent;
 import android.view.View;
 import android.util.Log;
 import android.view.ViewGroup;
@@ -15,6 +18,7 @@ import android.webkit.CookieManager;
 import android.webkit.URLUtil;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -32,6 +36,29 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 // WebView native Nevra: tampil di antara bilah atas dan toolbar bawah (milik UI HTML), dengan dukungan unduhan.
 @CapacitorPlugin(name = "NevraWeb")
 public class NevraWebPlugin extends Plugin {
+    // Jaringan iklan/pengalih yang umum membajak klik. Daftar ini kecil dan bisa diperluas.
+    private static final String[] AD_HOSTS = {
+            "trafficdeposit.com", "exoclick.com", "exosrv.com", "exdynsrv.com", "magsrv.com", "realsrv.com",
+            "juicyads.com", "trafficjunky.net", "trafficjunky.com", "trafficstars.com", "tsyndicate.com",
+            "popads.net", "popcash.net", "propellerads.com", "adsterra.com", "highperformanceformat.com",
+            "adcash.com", "clickadu.com"
+    };
+    private static volatile boolean adBlock = true;
+
+    private static boolean isAd(String url) {
+        if (!adBlock || url == null) return false;
+        try {
+            String h = Uri.parse(url).getHost();
+            if (h == null) return false;
+            for (String d : AD_HOSTS) {
+                if (h.equals(d) || h.endsWith("." + d)) return true;
+            }
+        } catch (Exception e) {
+            // anggap bukan iklan
+        }
+        return false;
+    }
+
     private static WebView sWeb;
     private static NevraWebPlugin sSelf;
     private WebView web;
@@ -150,6 +177,10 @@ public class NevraWebPlugin extends Plugin {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 String u = r.getUrl().toString();
+                if (isAd(u)) {
+                    notifyListeners("popupBlocked", new JSObject());
+                    return true;
+                }
                 if (isExternalAuthUrl(u)) {
                     openInCustomTab(u);
                     return true;
@@ -159,6 +190,14 @@ public class NevraWebPlugin extends Plugin {
                 o.put("url", u);
                 notifyListeners("blocked", o);
                 return true;
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
+                if (isAd(r.getUrl().toString())) {
+                    return new WebResourceResponse("text/plain", "utf-8", new java.io.ByteArrayInputStream(new byte[0]));
+                }
+                return super.shouldInterceptRequest(v, r);
             }
 
             @Override
@@ -175,18 +214,43 @@ public class NevraWebPlugin extends Plugin {
         web.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onCreateWindow(WebView v, boolean isDialog, boolean isUserGesture, Message resultMsg) {
-                WebView.HitTestResult hr = v.getHitTestResult();
-                int type = hr.getType();
-                String extra = hr.getExtra();
-                boolean link = isUserGesture && extra != null
-                        && (type == WebView.HitTestResult.SRC_ANCHOR_TYPE || type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE)
-                        && (extra.startsWith("http://") || extra.startsWith("https://"));
-                if (link) {
-                    v.loadUrl(extra);
-                } else {
+                if (!isUserGesture) {
                     notifyListeners("popupBlocked", new JSObject());
+                    return false;
                 }
-                return false;
+                // Tangkap alamat tujuan popup lewat WebView sementara, lalu putuskan: iklan diblokir, lainnya dibuka di halaman ini.
+                final WebView tmp = new WebView(getActivity());
+                tmp.setWebViewClient(new WebViewClient() {
+                    private boolean done = false;
+
+                    private void handle(String u) {
+                        if (done || u == null || u.equals("about:blank")) return;
+                        done = true;
+                        if (isExternalAuthUrl(u)) {
+                            openInCustomTab(u);
+                        } else if (isAd(u) || !(u.startsWith("http://") || u.startsWith("https://"))) {
+                            notifyListeners("popupBlocked", new JSObject());
+                        } else {
+                            web.loadUrl(u);
+                        }
+                        new Handler(Looper.getMainLooper()).post(() -> tmp.destroy());
+                    }
+
+                    @Override
+                    public boolean shouldOverrideUrlLoading(WebView t, WebResourceRequest r) {
+                        handle(r.getUrl().toString());
+                        return true;
+                    }
+
+                    @Override
+                    public void onPageStarted(WebView t, String u, Bitmap f) {
+                        handle(u);
+                    }
+                });
+                WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+                transport.setWebView(tmp);
+                resultMsg.sendToTarget();
+                return true;
             }
 
             @Override
@@ -224,6 +288,14 @@ public class NevraWebPlugin extends Plugin {
                 o.put("progress", p);
                 notifyListeners("progress", o);
             }
+        });
+
+        // Hanya memberi tahu UI saat halaman disentuh (agar kolom URL kehilangan fokus); tidak mengubah perilaku WebView.
+        web.setOnTouchListener((v, ev) -> {
+            if (ev.getAction() == MotionEvent.ACTION_DOWN) {
+                notifyListeners("webTouch", new JSObject());
+            }
+            return false;
         });
 
         web.setDownloadListener((url, ua, cd, mime, len) -> {
@@ -302,6 +374,27 @@ public class NevraWebPlugin extends Plugin {
             Toast.makeText(getActivity(), t == null ? "" : t, Toast.LENGTH_LONG).show();
             call.resolve();
         });
+    }
+
+    @PluginMethod
+    public void accent(final PluginCall call) {
+        JSObject o = new JSObject();
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                int c = getActivity().getResources().getColor(android.R.color.system_accent1_200, getActivity().getTheme());
+                o.put("color", String.format("#%06X", 0xFFFFFF & c));
+            }
+        } catch (Exception e) {
+            // abaikan: JS memakai warna cadangan
+        }
+        call.resolve(o);
+    }
+
+    @PluginMethod
+    public void setAdBlock(final PluginCall call) {
+        Boolean on = call.getBoolean("on", true);
+        adBlock = on == null || on;
+        call.resolve();
     }
 
     @PluginMethod

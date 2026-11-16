@@ -66,13 +66,22 @@ function render(){
  $('#bl').innerHTML=S.bm.map((b,i)=>row(b.u,b.t,b.u,i,1,i<20)).join('')||em('Belum ada bookmark. Buka situs lalu tekan ★ di bar.');
  $('#hl').innerHTML=S.hist.map((h,i)=>row(h.u,h.t,h.u,0,0,i<12)).join('')||em('Riwayat kosong.');
  $('#dll').innerHTML=dlHtml();
- $('#dark').checked=S.dark;$('#eng').value=S.eng;document.body.classList.toggle('d',S.dark);
+ $('#dark').checked=S.dark;$('#eng').value=S.eng;$('#adb').checked=S.adblock!==false;document.body.classList.toggle('d',S.dark);
  const e=$('#engst');if(e)e.textContent='Mesin browser: '+(engine.native?'WebView native Nevra':'iframe (mode web)');
  const ds=$('#dlst');if(ds)ds.textContent='Terdeteksi dari sistem: '+sysDl.length+' • sinyal diterima: '+evN+(lastErr?' • Kesalahan terakhir: '+lastErr:'')+(engine.err?' • '+engine.err:'');const bd=$('#bnav .bd');if(bd)bd.textContent=Math.max(S.tabs.length,1);paint();favErr()}
 $('#nav').innerHTML=[['home','Beranda','home'],['tabs','Tab','tabs'],['bm','Bookmark','bookmark'],['hist','Riwayat','clock'],['menu','Menu','gear']].map(([g,l,i])=>`<button data-go="${g}">${ic(i)}${l}</button>`).join('');
 const flip=ic('chev').replace('<svg','<svg style="transform:scaleX(-1)"');
 $('#bnav').innerHTML=`<button data-a="home" aria-label="Beranda">${ic('home')}</button><button data-go="bm" aria-label="Bookmark">${ic('bookmark')}</button><button data-a="back" class="dis" aria-label="Kembali">${flip}</button><button data-a="fwd" class="dis" aria-label="Maju">${ic('chev')}</button><button data-go="tabs" aria-label="Tab">${ic('tabs')}<span class="bd">1</span></button><button data-go="menu" aria-label="Menu">${ic('menu')}</button>`;
 $('#url').addEventListener('keydown',e=>{if(e.key==='Enter'){e.target.blur();go(e.target.value)}});
+// Kolom URL: ketuk = pilih semua teks (seperti browser lain); ketuk di luar = seleksi hilang.
+{const u=$('#url');let fresh=false;
+ u.addEventListener('focus',()=>{fresh=true;setTimeout(()=>{u.select();u.setSelectionRange(0,u.value.length)},50)});
+ const keep=e=>{if(fresh){e.preventDefault();fresh=false;u.select()}};
+ u.addEventListener('mouseup',keep);u.addEventListener('touchend',keep,{passive:false});
+ u.addEventListener('blur',()=>{fresh=false;u.setSelectionRange(0,0);u.scrollLeft=0});
+ engine.on('webTouch',()=>{if(document.activeElement===u)u.blur()});
+ document.addEventListener('pointerdown',e=>{if(document.activeElement===u&&!u.contains(e.target)&&e.target.id!=='url')u.blur()});
+ try{engine.accent().then(c=>{if(c)document.documentElement.style.setProperty('--sel',c+'80')}).catch(()=>{})}catch(e){}}
 $('#sf').onsubmit=e=>{e.preventDefault();go($('#q').value);$('#q').value=''};
 const A={
  reload(){engine.reload()},back(){engine.back()},fwd(){engine.fwd()},home(){show('home')},opendl(){engine.openDownloads()},
@@ -98,6 +107,8 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-a],[data-g
  if(t.dataset.u)go(t.dataset.u)});
 $('#dark').onchange=e=>{S.dark=e.target.checked;save();render()};
 $('#eng').onchange=e=>{S.eng=e.target.value;save()};
+$('#adb').onchange=e=>{S.adblock=e.target.checked;save();engine.setAdBlock(S.adblock)};
 document.querySelectorAll('[data-app]').forEach(e=>e.textContent=APP[e.dataset.app]);
+engine.setAdBlock(S.adblock!==false);
 render();show('home');initAds();
 setInterval(()=>{if(cur==='dl'&&engine.native)refreshDl()},1500);
